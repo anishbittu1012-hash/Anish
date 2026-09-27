@@ -1,0 +1,6 @@
+{
+  "name": "JARVIS",
+  "description": "Futuristic JARVIS AI assistant with microphone voice input, text-to-speech replies, animated arc reactor HUD, system telemetry, and app launcher.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
