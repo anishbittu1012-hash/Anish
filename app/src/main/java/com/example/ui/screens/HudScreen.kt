@@ -49,7 +49,6 @@ import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SettingsVoice
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
@@ -59,7 +58,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SuggestionChip
@@ -352,6 +350,15 @@ fun HudScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // High-Tech Stark Gemini Neural Brain Console & Synaptic Core
+        com.example.ui.components.GeminiNeuralBrainCard(
+            viewModel = viewModel,
+            onOpenBrainScreen = { viewModel.setScreen(com.example.ui.JarvisScreen.BRAIN) },
+            modifier = Modifier.testTag("hud_gemini_neural_brain_card")
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         // Dynamic Ambient Lighting Sensor Telemetry Card
         var showLuxCalibrator by remember { mutableStateOf(false) }
         var manualLuxSlider by remember { mutableFloatStateOf(ambientLightingState.currentLux) }
@@ -570,50 +577,33 @@ fun HudScreen(
                     .padding(10.dp)
                     .testTag("speech_error_banner")
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(imageVector = Icons.Default.Warning, contentDescription = "Error", tint = JarvisRedAlert, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = speechError ?: "",
-                                color = Color(0xFFFECACA),
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                        IconButton(
-                            onClick = { viewModel.toggleVoiceListening() },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Retry", tint = JarvisCyan, modifier = Modifier.size(16.dp))
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    OutlinedButton(
-                        onClick = onLaunchSystemVoiceDialog,
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = JarvisCyan),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan.copy(alpha = 0.6f)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(imageVector = Icons.Default.SettingsVoice, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(imageVector = Icons.Default.Warning, contentDescription = "Error", tint = JarvisRedAlert, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "OPEN GOOGLE VOICE SEARCH DIALOG",
+                            text = speechError ?: "",
+                            color = Color(0xFFFECACA),
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
                         )
+                    }
+                    Button(
+                        onClick = { viewModel.toggleVoiceListening() },
+                        colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan, contentColor = Color.Black),
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Refresh, contentDescription = "Retry", modifier = Modifier.size(12.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "RETRY", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                     }
                 }
             }

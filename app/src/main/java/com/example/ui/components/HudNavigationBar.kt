@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
@@ -48,9 +49,10 @@ fun HudNavigationBar(
 ) {
     val items = listOf(
         NavItem(JarvisScreen.HUD, "CORE", Icons.Default.Hub, "nav_core"),
+        NavItem(JarvisScreen.BRAIN, "BRAIN", Icons.Default.Psychology, "nav_brain"),
         NavItem(JarvisScreen.CHAT, "TERMINAL", Icons.AutoMirrored.Filled.Chat, "nav_terminal"),
         NavItem(JarvisScreen.TELEMETRY, "DIAGNOSTICS", Icons.Default.Speed, "nav_telemetry"),
-        NavItem(JarvisScreen.SHORTCUTS, "APPS & SYS", Icons.Default.Apps, "nav_shortcuts"),
+        NavItem(JarvisScreen.SHORTCUTS, "APPS", Icons.Default.Apps, "nav_shortcuts"),
         NavItem(JarvisScreen.PROTOCOLS, "PROTOCOLS", Icons.Default.Security, "nav_protocols")
     )
 
@@ -64,7 +66,7 @@ fun HudNavigationBar(
             .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
             .background(surfaceColor.copy(alpha = 0.98f))
             .border(1.dp, outlineColor, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-            .padding(horizontal = 4.dp, vertical = 6.dp)
+            .padding(horizontal = 2.dp, vertical = 6.dp)
             .testTag("hud_nav_bar")
     ) {
         Row(
@@ -79,22 +81,22 @@ fun HudNavigationBar(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .clickable { onScreenSelected(item.screen) }
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
                         .testTag(item.tag)
                 ) {
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.label,
                         tint = if (isSelected) primaryColor else JarvisTextMuted,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                     Text(
                         text = item.label,
                         color = if (isSelected) primaryColor else JarvisTextMuted,
-                        fontSize = 9.sp,
+                        fontSize = 8.5.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         fontFamily = FontFamily.Monospace,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.3.sp
                     )
                 }
             }

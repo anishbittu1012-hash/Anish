@@ -41,9 +41,11 @@ class AmbientLightManager(private val context: Context) : SensorEventListener {
         updateLightingMetrics(150f)
     }
 
+    private var lastRecordedLux = -1f
+
     fun startSensor() {
         if (lightSensor != null) {
-            sensorManager?.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_UI)
+            sensorManager?.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_NORMAL)
         }
     }
 
@@ -67,7 +69,10 @@ class AmbientLightManager(private val context: Context) : SensorEventListener {
         if (event?.sensor?.type == Sensor.TYPE_LIGHT) {
             val measuredLux = event.values.firstOrNull() ?: return
             if (simulatedLux == null) {
-                updateLightingMetrics(measuredLux)
+                if (lastRecordedLux < 0 || kotlin.math.abs(measuredLux - lastRecordedLux) >= 5f) {
+                    lastRecordedLux = measuredLux
+                    updateLightingMetrics(measuredLux)
+                }
             }
         }
     }

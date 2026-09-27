@@ -128,7 +128,7 @@ fun JarvisVoiceSynthesizerCard(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "ROBOTIC VOCAL SYNTHESIZER",
+                                text = "NATURAL VOICE ASSISTANT",
                                 color = JarvisCyan,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,

@@ -33,12 +33,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SettingsVoice
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,7 +44,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
@@ -334,60 +331,27 @@ fun JarvisMicInputButton(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Secondary actions row: Native System Voice Search & TTS Mute
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // System Voice Search Dialog Button
-                    OutlinedButton(
-                        onClick = {
-                            if (hasAudioPermission) {
-                                onLaunchSystemVoiceDialog()
-                            } else {
-                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                            }
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = JarvisCyan),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan.copy(alpha = 0.6f)),
+                // Secondary action: TTS Mute button if JARVIS is vocalizing
+                if (isSpeaking) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Button(
+                        onClick = { viewModel.stopSpeaking() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF334155),
+                            contentColor = JarvisCyan
+                        ),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
-                            .height(30.dp)
-                            .testTag("system_voice_dialog_trigger")
+                            .height(28.dp)
+                            .testTag("mute_speech_btn")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.SettingsVoice,
-                            contentDescription = "System Voice Dialog",
+                            imageVector = Icons.Default.Stop,
+                            contentDescription = "Mute",
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "VOICE SEARCH",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-
-                    // TTS Mute button if JARVIS is talking
-                    if (isSpeaking) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Button(
-                            onClick = { viewModel.stopSpeaking() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF334155),
-                                contentColor = JarvisCyan
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier
-                                .height(30.dp)
-                                .testTag("mute_speech_btn")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Stop,
-                                contentDescription = "Mute",
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "MUTE", fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-                        }
+                        Text(text = "STOP AUDIO", fontSize = 9.sp, fontFamily = FontFamily.Monospace)
                     }
                 }
             }

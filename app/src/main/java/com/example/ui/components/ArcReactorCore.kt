@@ -19,8 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -388,9 +388,9 @@ fun ArcReactorCore(
                 imageVector = when {
                     isListening -> Icons.Default.GraphicEq
                     isSpeaking -> Icons.AutoMirrored.Filled.VolumeUp
-                    else -> Icons.Default.Mic
+                    else -> Icons.Default.Bolt
                 },
-                contentDescription = if (isListening) "Listening" else "Mic",
+                contentDescription = if (isListening) "Listening" else "Arc Reactor Core",
                 tint = if (activityLevel > 0.2f) effectiveColor else effectiveColor.copy(alpha = 0.75f),
                 modifier = Modifier.size(34.dp)
             )

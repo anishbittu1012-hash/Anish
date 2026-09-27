@@ -41,6 +41,7 @@ import com.example.ui.components.HudNavigationBar
 import com.example.ui.components.HudTopBar
 import com.example.ui.components.SensitiveActionDialog
 import com.example.ui.components.SettingsDialog
+import com.example.ui.screens.BrainScreen
 import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.HudScreen
 import com.example.ui.screens.ProtocolsScreen
@@ -201,6 +202,39 @@ fun JarvisApp(
 
     var showSettingsDialog by remember { mutableStateOf(false) }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val cameraPhotoLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            viewModel.onVisualTelemetryCaptured(bitmap)
+            Toast.makeText(context, "Visual telemetry captured", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val requestCameraPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            cameraPhotoLauncher.launch(null)
+        } else {
+            Toast.makeText(context, "Camera permission required for visual scan", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    val onLaunchCamera: () -> Unit = {
+        val granted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            cameraPhotoLauncher.launch(null)
+        } else {
+            requestCameraPermission.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     // Hardware/System Back Handler returns to HUD if currently on another screen
     BackHandler(enabled = currentScreen != JarvisScreen.HUD) {
         viewModel.setScreen(JarvisScreen.HUD)
@@ -252,6 +286,11 @@ fun JarvisApp(
                             onLaunchSystemVoiceDialog = onLaunchSystemVoiceDialog,
                             onToggleBackgroundService = onToggleBackgroundProtocol
                         )
+                        JarvisScreen.BRAIN -> BrainScreen(
+                            viewModel = viewModel,
+                            onRequestRecordAudioPermission = onRequestAudioPermission,
+                            hasRecordAudioPermission = hasAudioPermission
+                        )
                         JarvisScreen.CHAT -> ChatScreen(
                             viewModel = viewModel,
                             onRequestRecordAudioPermission = onRequestAudioPermission,
@@ -283,6 +322,7 @@ fun JarvisApp(
                 SettingsDialog(
                     viewModel = viewModel,
                     hasRecordAudioPermission = hasAudioPermission,
+                    onLaunchCamera = onLaunchCamera,
                     onDismiss = { showSettingsDialog = false }
                 )
             }

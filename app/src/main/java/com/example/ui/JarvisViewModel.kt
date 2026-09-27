@@ -11,8 +11,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
 import com.example.data.local.JarvisDatabase
 import com.example.data.local.JarvisLogEntity
+import com.example.data.model.BrainThought
+import com.example.data.model.GeminiBrainMode
+import com.example.data.model.GeminiBrainTelemetry
 import com.example.data.remote.GeminiClient
 import com.example.data.remote.GeminiContent
+import com.example.data.remote.GeminiGenerationConfig
 import com.example.data.remote.GeminiPart
 import com.example.data.remote.GeminiRequest
 import com.example.service.JarvisBackgroundService
@@ -46,6 +50,7 @@ import kotlinx.coroutines.withContext
 
 enum class JarvisScreen {
     HUD,
+    BRAIN,
     CHAT,
     TELEMETRY,
     SHORTCUTS,
@@ -169,11 +174,50 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     private val _assistantPersona = MutableStateFlow("JARVIS")
     val assistantPersona: StateFlow<String> = _assistantPersona.asStateFlow()
 
+    // Gemini Neural Brain State
+    private val _geminiBrainTelemetry = MutableStateFlow(GeminiBrainTelemetry())
+    val geminiBrainTelemetry: StateFlow<GeminiBrainTelemetry> = _geminiBrainTelemetry.asStateFlow()
+
+    private val _brainThoughts = MutableStateFlow<List<BrainThought>>(emptyList())
+    val brainThoughts: StateFlow<List<BrainThought>> = _brainThoughts.asStateFlow()
+
+    private val prefs by lazy {
+        context.getSharedPreferences("jarvis_api_settings", Context.MODE_PRIVATE)
+    }
+
+    private val _customGeminiApiKey = MutableStateFlow(
+        prefs.getString("custom_gemini_key", "") ?: ""
+    )
+    val customGeminiApiKey: StateFlow<String> = _customGeminiApiKey.asStateFlow()
+
+    private val _customSearchApiKey = MutableStateFlow(
+        prefs.getString("custom_search_key", "") ?: ""
+    )
+    val customSearchApiKey: StateFlow<String> = _customSearchApiKey.asStateFlow()
+
+    private val _capturedVisualTelemetry = MutableStateFlow<android.graphics.Bitmap?>(null)
+    val capturedVisualTelemetry: StateFlow<android.graphics.Bitmap?> = _capturedVisualTelemetry.asStateFlow()
+
     private val _isFastResponseMode = MutableStateFlow(true)
     val isFastResponseMode: StateFlow<Boolean> = _isFastResponseMode.asStateFlow()
 
     private val _isHapticEnabled = MutableStateFlow(true)
     val isHapticEnabled: StateFlow<Boolean> = _isHapticEnabled.asStateFlow()
+
+    private val _isSoundEffectsEnabled = MutableStateFlow(
+        prefs.getBoolean("sound_effects_enabled", true)
+    )
+    val isSoundEffectsEnabled: StateFlow<Boolean> = _isSoundEffectsEnabled.asStateFlow()
+
+    fun toggleSoundEffects() {
+        val newVal = !_isSoundEffectsEnabled.value
+        _isSoundEffectsEnabled.value = newVal
+        SoundFxGenerator.isSoundEffectsEnabled = newVal
+        prefs.edit().putBoolean("sound_effects_enabled", newVal).apply()
+        if (newVal) {
+            SoundFxGenerator.playAcknowledgeBeep()
+        }
+    }
 
     // History logs from Room
     val conversationLogs = dao.getAllLogs().stateIn(
@@ -185,6 +229,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
     private var telemetryJob: Job? = null
 
     init {
+        SoundFxGenerator.isSoundEffectsEnabled = _isSoundEffectsEnabled.value
         setupVoiceListeners()
         loadInstalledApps()
         startTelemetryLoop()
@@ -256,10 +301,13 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         _statusText.value = "VOICE: ${preset.displayName.uppercase()}"
         if (_isTtsAutoEnabled.value) {
             val isBn = speechRecognizerHelper.activeLanguage.value == VoiceLanguage.BENGALI
+            val isHi = speechRecognizerHelper.activeLanguage.value == VoiceLanguage.HINDI
             val msg = if (isBn) {
-                "${preset.displayName} কৃত্রিম রোবোটিক ভয়েস সংশ্লেষক সক্রিয় হয়েছে।"
+                "${preset.displayName} ভয়েস প্রোফাইল নির্বাচন করা হয়েছে।"
+            } else if (isHi) {
+                "${preset.displayName} वॉइस प्रोफाइल सेट हो गया है।"
             } else {
-                "${preset.displayName} vocal synthesis engaged, Sir."
+                "${preset.displayName} voice profile engaged."
             }
             ttsManager.speak(msg)
         }
@@ -272,13 +320,16 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
 
     fun testRoboticVoiceSynthesis() {
         val isBn = speechRecognizerHelper.activeLanguage.value == VoiceLanguage.BENGALI
+        val isHi = speechRecognizerHelper.activeLanguage.value == VoiceLanguage.HINDI
         val testPhrase = if (isBn) {
-            "নমস্কার স্যার। জারভিস কৃত্রিম রোবোটিক ভয়েস সংশ্লেষক সম্পূর্ণ প্রস্তুত। সিস্টেম স্বাভাবিক রয়েছে।"
+            "নমস্কার! আমি আপনার ভয়েস এআই সহকারী। আমি বাংলা, হিন্দি ও ইংরেজিতে স্বাভাবিক বন্ধুত্বপূর্ণ কণ্ঠে কথা বলতে পারি।"
+        } else if (isHi) {
+            "नमस्ते! मैं आपका वॉइस एआई असिस्टेंट हूँ। मैं हिंदी, बंगाली और अंग्रेजी में आपसे स्वाभाविक अंदाज़ में बात कर सकता हूँ।"
         } else {
-            "Greetings, Sir. J.A.R.V.I.S. vocal synthesis matrix fully operational. All cybernetic systems online."
+            "Hello! I am your natural voice AI assistant. I understand and converse naturally in English, Bengali, and Hindi."
         }
         _lastResponse.value = testPhrase
-        _statusText.value = "TESTING VOCAL SYNTHESIS"
+        _statusText.value = "TESTING NATURAL VOICE"
         ttsManager.speak(testPhrase)
     }
 
@@ -348,6 +399,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         speechRecognizerHelper.onSpeechError = { errorMessage, _ ->
             _speechError.value = errorMessage
             _statusText.value = errorMessage
+            SoundFxGenerator.playWarningAlarm()
         }
     }
 
@@ -357,7 +409,7 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             while (true) {
                 val updated = TelemetryProvider.getTelemetry(context)
                 _telemetry.value = updated
-                delay(3000)
+                delay(6000)
             }
         }
     }
@@ -652,6 +704,34 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
+        // Gemini Brain Voice Commands & Mode Switchers
+        if (lower.contains("open brain") || lower.contains("show brain") || lower.contains("neural brain") || lower.contains("gemini brain") || lower.contains("ব্রেইন খোলো") || lower.contains("ब्रेन खोलो")) {
+            setScreen(JarvisScreen.BRAIN)
+            val reply = if (isBengali) "জেমিনাই নিউরাল ব্রেইন ম্যাট্রিক্স খোলা হয়েছে, স্যার।" else "Gemini Neural Brain Matrix initialized, Sir."
+            _lastResponse.value = reply
+            _statusText.value = "BRAIN MATRIX ONLINE"
+            _recognizedCommand.value = _recognizedCommand.value?.copy(status = "EXECUTED")
+            if (_isTtsAutoEnabled.value) ttsManager.speak(reply)
+            return
+        }
+
+        if (lower.contains("tactical mode") || lower.contains("tactical brain")) {
+            setBrainMode(GeminiBrainMode.TACTICAL)
+            return
+        }
+        if (lower.contains("quantum mode") || lower.contains("quantum brain") || lower.contains("physics mode")) {
+            setBrainMode(GeminiBrainMode.QUANTUM)
+            return
+        }
+        if (lower.contains("inventor mode") || lower.contains("creative mode") || lower.contains("blueprint mode")) {
+            setBrainMode(GeminiBrainMode.CREATIVE)
+            return
+        }
+        if (lower.contains("butler mode") || lower.contains("gentleman mode")) {
+            setBrainMode(GeminiBrainMode.BUTLER)
+            return
+        }
+
         if (lower.contains("youtube kholo") || lower.contains("यूट्यूब खोलो") || lower.contains("youtube open karo")) {
             val reply = "YouTube khol raha hoon."
             _lastResponse.value = reply
@@ -935,27 +1015,162 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private fun queryGeminiAI(prompt: String, isBengali: Boolean) {
+    fun setBrainMode(mode: GeminiBrainMode) {
+        _geminiBrainTelemetry.value = _geminiBrainTelemetry.value.copy(activeMode = mode)
+        val announcement = when (mode) {
+            GeminiBrainMode.BUTLER -> "Switched to Gentleman Butler mode, Sir."
+            GeminiBrainMode.TACTICAL -> "Tactical defense and combat analysis matrix engaged."
+            GeminiBrainMode.QUANTUM -> "Quantum science and physics reasoning initialized."
+            GeminiBrainMode.CREATIVE -> "Stark blueprint and invention mode online."
+        }
+        _statusText.value = "BRAIN: ${mode.name} MODE ACTIVE"
+        if (_isTtsAutoEnabled.value) {
+            ttsManager.speak(announcement)
+        }
+    }
+
+    fun speakResponse(text: String) {
+        ttsManager.speak(text)
+    }
+
+    fun getEffectiveGeminiApiKey(): String {
+        val custom = _customGeminiApiKey.value.trim()
+        if (custom.isNotBlank()) return custom
+        val buildKey = BuildConfig.GEMINI_API_KEY
+        if (buildKey.isNotBlank() && buildKey != "MY_GEMINI_API_KEY") return buildKey
+        return ""
+    }
+
+    fun saveApiConfiguration(geminiKey: String, searchKey: String) {
+        _customGeminiApiKey.value = geminiKey.trim()
+        _customSearchApiKey.value = searchKey.trim()
+        prefs.edit()
+            .putString("custom_gemini_key", geminiKey.trim())
+            .putString("custom_search_key", searchKey.trim())
+            .apply()
+    }
+
+    suspend fun testGeminiConnection(keyToTest: String? = null): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val key = keyToTest?.trim()?.ifBlank { null } ?: getEffectiveGeminiApiKey()
+        if (key.isBlank()) {
+            return@withContext Pair(false, "API Key is empty. Please enter a valid Gemini API Key.")
+        }
+        val startTime = System.currentTimeMillis()
+        try {
+            val request = GeminiRequest(
+                contents = listOf(
+                    GeminiContent(parts = listOf(GeminiPart(text = "Hello JARVIS")), role = "user")
+                )
+            )
+            val response = GeminiClient.service.generateContent(key, request)
+            val latency = System.currentTimeMillis() - startTime
+            val reply = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+            if (!reply.isNullOrBlank()) {
+                Pair(true, "Connection successful (${latency}ms) - Model: gemini-3.5-flash online")
+            } else {
+                Pair(false, "Received empty response from Gemini server")
+            }
+        } catch (e: Exception) {
+            Pair(false, "Test failed: ${e.localizedMessage ?: "Network or Auth Error"}")
+        }
+    }
+
+    suspend fun testWebSearchConnection(): Pair<Boolean, String> {
+        return com.example.util.WebSearchEngine.testSearchConnection()
+    }
+
+    fun onVisualTelemetryCaptured(bitmap: android.graphics.Bitmap) {
+        _capturedVisualTelemetry.value = bitmap
+        _statusText.value = "OPTICAL MATRIX: TELEMETRY SYNCED"
+        val feedback = "Optical sensor telemetry acquired, Sir. Visual analysis synchronized."
+        _lastResponse.value = feedback
+        if (_isTtsAutoEnabled.value) {
+            ttsManager.speak(feedback)
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            dao.insertLog(JarvisLogEntity(query = "[OPTICAL SENSOR CAPTURE]", response = feedback, category = "CAMERA"))
+        }
+    }
+
+    private fun extractCityName(prompt: String): String {
+        val words = prompt.split(" ", "?", ".", ",", "!")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+        val commonKeywords = setOf("weather", "in", "of", "for", "at", "what", "is", "the", "like", "how", "today", "tomorrow", "forecast", "আবহাওয়া", "আজকের", "কেমন", "मौसम", "का", "कैसा", "है", "बताओ")
+        val candidate = words.filter { it.lowercase() !in commonKeywords }.lastOrNull()
+        return candidate ?: "Dhaka"
+    }
+
+    fun regenerateResponse(log: JarvisLogEntity) {
+        queryGeminiBrain(log.query)
+    }
+
+    fun queryGeminiBrain(prompt: String, mode: GeminiBrainMode? = null) {
+        val activeMode = mode ?: _geminiBrainTelemetry.value.activeMode
         _isThinking.value = true
-        _statusText.value = if (isBengali) "স্টার্ক নিউরাল কোরে অনুসন্ধান চলছে..." else "QUERYING STARK NEURAL MATRIX..."
+        _lastQuery.value = prompt
+        _geminiBrainTelemetry.value = _geminiBrainTelemetry.value.copy(
+            status = "SYNAPSES_FIRING",
+            neuralActivityLevel = 0.95f
+        )
+        val isBengali = speechRecognizerHelper.activeLanguage.value == VoiceLanguage.BENGALI ||
+                activeLanguage.value == VoiceLanguage.BENGALI ||
+                prompt.any { it in '\u0980'..'\u09FF' }
+
+        _statusText.value = if (isBengali) "স্টার্ক নিউরাল ব্রেইন বিশ্লেষণ করছে..." else "FIRING GEMINI SYNAPTIC MATRIX..."
 
         viewModelScope.launch {
+            val startTime = System.currentTimeMillis()
             try {
-                val apiKey = BuildConfig.GEMINI_API_KEY
-                val responseText = if (apiKey.isNotBlank() && apiKey != "MY_GEMINI_API_KEY") {
+                val apiKey = getEffectiveGeminiApiKey()
+                var tokensUsed = 0
+
+                // 1. Real-Time Web Telemetry / Weather Augmentation
+                val lowerPrompt = prompt.lowercase()
+                var augmentedContext = ""
+                if (lowerPrompt.contains("weather") || lowerPrompt.contains("abohaoya") || lowerPrompt.contains("আবহাওয়া") || lowerPrompt.contains("मौसम")) {
+                    val city = extractCityName(prompt)
+                    val weatherInfo = com.example.util.WebSearchEngine.fetchLiveWeather(city)
+                    if (weatherInfo != null) {
+                        augmentedContext = "\n\n[LIVE SENSOR TELEMETRY - OPEN-METEO]: Current weather in ${weatherInfo.location}: ${weatherInfo.rawData}. Weave this verified live data into your articulate Stark response."
+                    }
+                } else if (lowerPrompt.startsWith("search ") || lowerPrompt.startsWith("search for ") || lowerPrompt.contains("latest news") || lowerPrompt.contains("খবর") || lowerPrompt.contains("সার্চ")) {
+                    val cleanQuery = prompt.replace("search", "", ignoreCase = true).replace("খবর", "", ignoreCase = true).trim()
+                    val searchResults = com.example.util.WebSearchEngine.searchWeb(cleanQuery)
+                    if (searchResults.isNotEmpty()) {
+                        val snippets = searchResults.joinToString("\n") { "- ${it.title}: ${it.snippet}" }
+                        augmentedContext = "\n\n[LIVE WEB SEARCH TELEMETRY]:\n$snippets\nUse these fresh verified world facts to answer."
+                    }
+                }
+
+                val responseText = if (apiKey.isNotBlank()) {
                     withContext(Dispatchers.IO) {
+                        val baseInstruction = GeminiClient.JARVIS_SYSTEM_INSTRUCTION
+                        val fullInstruction = "$baseInstruction\n\n${activeMode.systemPromptExtension}$augmentedContext"
+
+                        // Build multi-turn conversational context memory
+                        val contentsList = mutableListOf<GeminiContent>()
+                        val recentHistory = conversationLogs.value.take(6).reversed()
+                        for (item in recentHistory) {
+                            if (item.query.isNotBlank() && item.response.isNotBlank() && item.query != prompt) {
+                                contentsList.add(GeminiContent(parts = listOf(GeminiPart(text = item.query)), role = "user"))
+                                contentsList.add(GeminiContent(parts = listOf(GeminiPart(text = item.response)), role = "model"))
+                            }
+                        }
+                        contentsList.add(GeminiContent(parts = listOf(GeminiPart(text = prompt)), role = "user"))
+
                         val request = GeminiRequest(
-                            contents = listOf(
-                                GeminiContent(
-                                    parts = listOf(GeminiPart(text = prompt)),
-                                    role = "user"
-                                )
-                            ),
+                            contents = contentsList,
                             systemInstruction = GeminiContent(
-                                parts = listOf(GeminiPart(text = GeminiClient.JARVIS_SYSTEM_INSTRUCTION))
+                                parts = listOf(GeminiPart(text = fullInstruction))
+                            ),
+                            generationConfig = GeminiGenerationConfig(
+                                temperature = activeMode.temperature,
+                                maxOutputTokens = 1024
                             )
                         )
                         val result = GeminiClient.service.generateContent(apiKey, request)
+                        tokensUsed = result.usageMetadata?.totalTokenCount ?: 0
                         result.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
                             ?: if (isBengali) "টেলিমেট্রি স্ট্রিমে কোনো স্পষ্ট সংকেত পাওয়া যায়নি, স্যার।"
                             else "I processed your request, Sir, but the telemetry stream returned no clear response."
@@ -964,9 +1179,33 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                     generateOfflineJarvisAnswer(prompt, isBengali)
                 }
 
+                val latency = System.currentTimeMillis() - startTime
+                val currentTele = _geminiBrainTelemetry.value
+                val newFiredCount = currentTele.synapsesFiredCount + 1
+                val newAvgLatency = if (currentTele.avgLatencyMs == 0L) latency else (currentTele.avgLatencyMs + latency) / 2
+                val newTotalTokens = currentTele.totalTokensProcessed + tokensUsed
+
+                _geminiBrainTelemetry.value = currentTele.copy(
+                    status = "ONLINE",
+                    synapsesFiredCount = newFiredCount,
+                    lastLatencyMs = latency,
+                    avgLatencyMs = newAvgLatency,
+                    totalTokensProcessed = newTotalTokens,
+                    neuralActivityLevel = 0.55f
+                )
+
+                val newThought = BrainThought(
+                    query = prompt,
+                    response = responseText,
+                    mode = activeMode,
+                    latencyMs = latency,
+                    tokensUsed = tokensUsed
+                )
+                _brainThoughts.value = listOf(newThought) + _brainThoughts.value.take(25)
+
                 _isThinking.value = false
                 _lastResponse.value = responseText
-                _statusText.value = if (isBengali) "উত্তর প্রস্তুত, স্যার" else "RESPONSE READY, SIR"
+                _statusText.value = if (isBengali) "উত্তর প্রস্তুত, স্যার" else "COGNITION COMPLETE, SIR"
                 _recognizedCommand.value = _recognizedCommand.value?.copy(status = "REPLIED")
 
                 if (_isTtsAutoEnabled.value) {
@@ -978,15 +1217,22 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                         JarvisLogEntity(
                             query = prompt,
                             response = responseText,
-                            category = "AI"
+                            category = "GEMINI_BRAIN"
                         )
                     )
                 }
             } catch (e: Exception) {
-                _isThinking.value = false
+                val latency = System.currentTimeMillis() - startTime
                 val fallback = generateOfflineJarvisAnswer(prompt, isBengali)
+
+                _isThinking.value = false
                 _lastResponse.value = fallback
                 _statusText.value = if (isBengali) "অফলাইন নিউরাল মোড সক্রিয়" else "OFFLINE NEURAL MATRIX ACTIVE"
+                _geminiBrainTelemetry.value = _geminiBrainTelemetry.value.copy(
+                    status = "ONLINE",
+                    lastLatencyMs = latency,
+                    neuralActivityLevel = 0.35f
+                )
                 _recognizedCommand.value = _recognizedCommand.value?.copy(status = "OFFLINE_REPLY")
 
                 if (_isTtsAutoEnabled.value) {
@@ -1004,6 +1250,10 @@ class JarvisViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
+    }
+
+    private fun queryGeminiAI(prompt: String, isBengali: Boolean) {
+        queryGeminiBrain(prompt)
     }
 
     private fun generateOfflineJarvisAnswer(prompt: String, isBengali: Boolean): String {

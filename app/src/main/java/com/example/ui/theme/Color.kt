@@ -12,6 +12,7 @@ val JarvisGold = Color(0xFFFBBF24)
 val JarvisAmber = Color(0xFFF59E0B)
 val JarvisOrange = Color(0xFFFB923C)
 val JarvisRedAlert = Color(0xFFEF4444)
+val JarvisGreen = Color(0xFF10B981)
 
 val JarvisDarkBackground = Color(0xFF030712)
 val JarvisDarkSurface = Color(0xFF071324)

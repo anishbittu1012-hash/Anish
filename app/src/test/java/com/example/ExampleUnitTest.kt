@@ -132,6 +132,44 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun geminiBrainMode_allModesConfigured() {
+        val modes = com.example.data.model.GeminiBrainMode.values()
+        assertTrue(modes.any { it == com.example.data.model.GeminiBrainMode.BUTLER })
+        assertTrue(modes.any { it == com.example.data.model.GeminiBrainMode.TACTICAL })
+        assertTrue(modes.any { it == com.example.data.model.GeminiBrainMode.QUANTUM })
+        assertTrue(modes.any { it == com.example.data.model.GeminiBrainMode.CREATIVE })
+        modes.forEach {
+            assertTrue(it.title.isNotBlank())
+            assertTrue(it.titleBn.isNotBlank())
+            assertTrue(it.systemPromptExtension.isNotBlank())
+            assertTrue(it.temperature in 0.1f..1.5f)
+        }
+    }
+
+    @Test
+    fun geminiMultiTurnContext_constructsAlternatingTurnsCorrectly() {
+        val logs = listOf(
+            com.example.data.local.JarvisLogEntity(query = "What is the arc reactor?", response = "A clean energy generator.", category = "AI"),
+            com.example.data.local.JarvisLogEntity(query = "বাংলায় বলো", response = "এটি একটি ক্লিন এনার্জি জেনারেটর।", category = "AI")
+        )
+        val currentPrompt = "How does it power the suit?"
+        val contentsList = mutableListOf<com.example.data.remote.GeminiContent>()
+        for (item in logs) {
+            contentsList.add(com.example.data.remote.GeminiContent(parts = listOf(com.example.data.remote.GeminiPart(text = item.query)), role = "user"))
+            contentsList.add(com.example.data.remote.GeminiContent(parts = listOf(com.example.data.remote.GeminiPart(text = item.response)), role = "model"))
+        }
+        contentsList.add(com.example.data.remote.GeminiContent(parts = listOf(com.example.data.remote.GeminiPart(text = currentPrompt)), role = "user"))
+
+        assertEquals(5, contentsList.size)
+        assertEquals("user", contentsList[0].role)
+        assertEquals("model", contentsList[1].role)
+        assertEquals("user", contentsList[2].role)
+        assertEquals("model", contentsList[3].role)
+        assertEquals("user", contentsList[4].role)
+        assertEquals(currentPrompt, contentsList[4].parts[0].text)
+    }
+
+    @Test
     fun pythonJarvisConversationalContract_repliesMatchSpecification() {
         fun jarvisReply(userText: String): String {
             val text = userText.lowercase()

@@ -299,33 +299,61 @@ enum class RoboticVoicePreset(
     val speechRate: Float,
     val description: String
 ) {
+    NATURAL_FRIENDLY(
+        id = "natural_friendly",
+        displayName = "Natural Friendly AI",
+        pitch = 1.00f,
+        speechRate = 1.00f,
+        description = "Warm, welcoming, natural human-like cadence (non-robotic)"
+    ),
+    WARM_COMPANION(
+        id = "warm_companion",
+        displayName = "Warm British Assistant",
+        pitch = 0.98f,
+        speechRate = 1.00f,
+        description = "Articulate, polite, natural gentleman cadence"
+    ),
+    CALM_GENTLE(
+        id = "calm_gentle",
+        displayName = "Calm & Gentle",
+        pitch = 1.04f,
+        speechRate = 0.95f,
+        description = "Soft, soothing and attentive conversational tone"
+    ),
+    CRISP_TACTICAL(
+        id = "crisp_tactical",
+        displayName = "Dynamic & Expressive",
+        pitch = 1.00f,
+        speechRate = 1.08f,
+        description = "Clear, brisk and energetic natural speech"
+    ),
     STARK_JARVIS(
         id = "stark_jarvis",
         displayName = "J.A.R.V.I.S. Classic",
-        pitch = 0.88f,
+        pitch = 0.95f,
         speechRate = 1.00f,
-        description = "Sophisticated British AI cadence with warm harmonic depth"
+        description = "Sophisticated British AI cadence with harmonic depth"
     ),
     CYBERNETIC_ROBOT(
         id = "cybernetic_robot",
-        displayName = "Cybernetic Android",
-        pitch = 0.76f,
-        speechRate = 1.08f,
-        description = "Deep synthesized resonance with swift robotic cadence"
+        displayName = "Cybernetic Tone",
+        pitch = 0.85f,
+        speechRate = 1.05f,
+        description = "Synthesized cadence for sci-fi atmosphere"
     ),
     DEEP_CORE_AI(
         id = "deep_core_ai",
-        displayName = "Deep Neural Subsystem",
-        pitch = 0.65f,
-        speechRate = 0.94f,
-        description = "Heavy baritone synthetic tone with deliberate articulation"
+        displayName = "Deep Resonant",
+        pitch = 0.80f,
+        speechRate = 0.96f,
+        description = "Deliberate baritone acoustic presence"
     ),
     QUANTUM_SYNTH(
         id = "quantum_synth",
-        displayName = "Quantum Vocal Synth",
-        pitch = 1.15f,
-        speechRate = 1.10f,
-        description = "High-frequency robotic cadence for rapid tactical feedback"
+        displayName = "High Clarity",
+        pitch = 1.10f,
+        speechRate = 1.05f,
+        description = "High-frequency articulated vocal tone"
     )
 }
 
@@ -340,29 +368,29 @@ class TtsManager(private val context: Context) {
     private val _currentLanguageName = MutableStateFlow("English")
     val currentLanguageName: StateFlow<String> = _currentLanguageName.asStateFlow()
 
-    private val _speechPitch = MutableStateFlow(0.88f)
+    private val _speechPitch = MutableStateFlow(1.00f)
     val speechPitchFlow: StateFlow<Float> = _speechPitch.asStateFlow()
 
     private val _speechRate = MutableStateFlow(1.00f)
     val speechRateFlow: StateFlow<Float> = _speechRate.asStateFlow()
 
-    private val _selectedPreset = MutableStateFlow(RoboticVoicePreset.STARK_JARVIS)
+    private val _selectedPreset = MutableStateFlow(RoboticVoicePreset.NATURAL_FRIENDLY)
     val selectedPreset: StateFlow<RoboticVoicePreset> = _selectedPreset.asStateFlow()
 
-    private val _roboticChirpEnabled = MutableStateFlow(true)
+    private val _roboticChirpEnabled = MutableStateFlow(false)
     val roboticChirpEnabled: StateFlow<Boolean> = _roboticChirpEnabled.asStateFlow()
 
     var speechRate: Float
         get() = _speechRate.value
         set(value) {
-            _speechRate.value = value.coerceIn(0.5f, 2.0f)
+            _speechRate.value = value.coerceIn(0.6f, 1.8f)
             tts?.setSpeechRate(_speechRate.value)
         }
 
     var speechPitch: Float
         get() = _speechPitch.value
         set(value) {
-            _speechPitch.value = value.coerceIn(0.5f, 2.0f)
+            _speechPitch.value = value.coerceIn(0.6f, 1.8f)
             tts?.setPitch(_speechPitch.value)
         }
 
@@ -397,20 +425,22 @@ class TtsManager(private val context: Context) {
                     tts?.setLanguage(Locale.US)
                 }
 
-                // Choose best natural British / Male / Robotic JARVIS voice if available
+                // Prefer natural friendly non-robotic voice
                 try {
                     val voices = tts?.voices
-                    val jarvisVoice = voices?.firstOrNull { v ->
-                        v.locale.language == "en" && (
-                            v.name.contains("en-gb", ignoreCase = true) ||
-                            v.name.contains("male", ignoreCase = true) ||
-                            v.name.contains("gb", ignoreCase = true) ||
-                            v.name.contains("robot", ignoreCase = true)
-                        )
-                    } ?: voices?.firstOrNull { it.locale.language == "en" }
+                    val naturalVoice = voices?.firstOrNull { v ->
+                        v.locale.language == "en" &&
+                            !v.name.contains("robot", ignoreCase = true) &&
+                            (v.name.contains("natural", ignoreCase = true) ||
+                             v.name.contains("neural", ignoreCase = true) ||
+                             v.name.contains("wavenet", ignoreCase = true) ||
+                             v.name.contains("en-gb", ignoreCase = true))
+                    } ?: voices?.firstOrNull { v ->
+                        v.locale.language == "en" && !v.name.contains("robot", ignoreCase = true)
+                    }
 
-                    if (jarvisVoice != null) {
-                        tts?.voice = jarvisVoice
+                    if (naturalVoice != null) {
+                        tts?.voice = naturalVoice
                     }
                 } catch (e: Exception) {
                     // Safe fallback
@@ -469,36 +499,42 @@ class TtsManager(private val context: Context) {
     }
 
     /**
-     * Synthesizes text with robotic cadence and phonetic structuring
+     * Cleans markdown, formatting, code blocks, and symbols so TTS speaks in natural human speech
      */
-    private fun formatRoboticCadence(rawText: String): String {
+    private fun formatNaturalSpeech(rawText: String): String {
         return rawText
-            .replace("JARVIS", "J.A.R.V.I.S.")
-            .replace("Jarvis", "J.A.R.V.I.S.")
-            .replace("AI", "A.I.")
-            .replace("HUD", "H.U.D.")
-            .replace("TTS", "T.T.S.")
-            .replace("*", "")
-            .replace("#", "")
+            .replace(Regex("```[\\s\\S]*?```"), "Code block omitted.")
+            .replace(Regex("`.*?`"), "")
+            .replace(Regex("\\*\\*(.*?)\\*\\*"), "$1")
+            .replace(Regex("\\*(.*?)\\*"), "$1")
+            .replace(Regex("#+\\s*"), "")
+            .replace(Regex("!\\[.*?\\]\\(.*?\\)"), "")
+            .replace(Regex("\\[(.*?)\\]\\(.*?\\)"), "$1")
             .replace("•", ",")
-            .replace("%", " percent")
+            .replace("- ", ", ")
+            .replace("%", " percent ")
+            .replace("&", " and ")
+            .replace("JARVIS", "Jarvis")
+            .replace("AI", "A.I.")
+            .replace(Regex("\\s+"), " ")
             .trim()
     }
 
     fun speak(text: String, onDone: (() -> Unit)? = null) {
         if (!isInitialized || tts == null) return
 
-        val formattedText = formatRoboticCadence(text)
+        val formattedText = formatNaturalSpeech(text)
+        if (formattedText.isBlank()) return
 
-        // Play brief electronic chirp before vocalizing if enabled
+        // Gentle notification chime if enabled
         if (_roboticChirpEnabled.value) {
-            SoundFxGenerator.playRoboticVocoderChirp()
+            SoundFxGenerator.playResponseArrivalChime()
         }
 
         tts?.setSpeechRate(_speechRate.value)
         tts?.setPitch(_speechPitch.value)
 
-        // Intelligently select Hindi, Bengali, or English TTS voice based on text contents
+        // Intelligently select Hindi, Bengali, or English TTS voice with natural preference
         if (containsHindi(formattedText) || isHinglish(formattedText)) {
             val hiLocale = Locale.forLanguageTag("hi-IN")
             val available = tts?.isLanguageAvailable(hiLocale)
@@ -557,19 +593,27 @@ class TtsManager(private val context: Context) {
 
 object SoundFxGenerator {
 
+    @Volatile
+    var isSoundEffectsEnabled: Boolean = true
+
+    /**
+     * Pleasant rising two-tone chime when microphone activates (523Hz C5 -> 784Hz G5)
+     */
     fun playActivationChirp() {
+        if (!isSoundEffectsEnabled) return
         Thread {
             try {
                 val sampleRate = 44100
-                val durationMs = 160
+                val durationMs = 150
                 val numSamples = (sampleRate * durationMs / 1000)
                 val buffer = ShortArray(numSamples)
 
                 for (i in 0 until numSamples) {
                     val progress = i.toDouble() / numSamples
-                    val freq = 1200.0 + progress * 1600.0
-                    val envelope = sin(Math.PI * progress)
-                    val sample = sin(2.0 * Math.PI * freq * i / sampleRate) * envelope * 0.4
+                    val freq = if (progress < 0.5) 523.25 else 783.99
+                    val segProgress = (progress * 2) % 1.0
+                    val envelope = sin(Math.PI * segProgress)
+                    val sample = sin(2.0 * Math.PI * freq * i / sampleRate) * envelope * 0.35
                     buffer[i] = (sample * Short.MAX_VALUE).toInt().toShort()
                 }
 
@@ -580,20 +624,54 @@ object SoundFxGenerator {
         }.start()
     }
 
+    /**
+     * Sweet affirmative confirmation pop chime when command is captured (880Hz A5 with smooth decay)
+     */
     fun playAcknowledgeBeep() {
+        if (!isSoundEffectsEnabled) return
         Thread {
             try {
                 val sampleRate = 44100
-                val durationMs = 120
+                val durationMs = 110
                 val numSamples = (sampleRate * durationMs / 1000)
                 val buffer = ShortArray(numSamples)
 
                 for (i in 0 until numSamples) {
                     val progress = i.toDouble() / numSamples
-                    val envelope = if (progress < 0.45 || progress > 0.55) {
-                        sin(Math.PI * ((progress * 2) % 1.0))
-                    } else 0.0
-                    val sample = sin(2.0 * Math.PI * 2200.0 * i / sampleRate) * envelope * 0.35
+                    val envelope = kotlin.math.exp(-3.5 * progress) * sin(Math.PI * progress)
+                    val sample = sin(2.0 * Math.PI * 880.0 * i / sampleRate) * envelope * 0.35
+                    buffer[i] = (sample * Short.MAX_VALUE).toInt().toShort()
+                }
+
+                playBuffer(buffer, sampleRate)
+            } catch (e: Exception) {
+                // Ignore audio generation issues
+            }
+        }.start()
+    }
+
+    /**
+     * Warm, friendly 3-note arrival chime (C5 -> E5 -> G5)
+     */
+    fun playResponseArrivalChime() {
+        if (!isSoundEffectsEnabled) return
+        Thread {
+            try {
+                val sampleRate = 44100
+                val durationMs = 210
+                val numSamples = (sampleRate * durationMs / 1000)
+                val buffer = ShortArray(numSamples)
+
+                for (i in 0 until numSamples) {
+                    val progress = i.toDouble() / numSamples
+                    val freq = when {
+                        progress < 0.33 -> 523.25 // C5
+                        progress < 0.66 -> 659.25 // E5
+                        else -> 783.99           // G5
+                    }
+                    val segProgress = (progress * 3.0) % 1.0
+                    val envelope = sin(Math.PI * segProgress)
+                    val sample = sin(2.0 * Math.PI * freq * i / sampleRate) * envelope * 0.3
                     buffer[i] = (sample * Short.MAX_VALUE).toInt().toShort()
                 }
 
@@ -605,42 +683,27 @@ object SoundFxGenerator {
     }
 
     fun playRoboticVocoderChirp() {
-        Thread {
-            try {
-                val sampleRate = 44100
-                val durationMs = 80
-                val numSamples = (sampleRate * durationMs / 1000)
-                val buffer = ShortArray(numSamples)
-
-                for (i in 0 until numSamples) {
-                    val progress = i.toDouble() / numSamples
-                    val freq = 1800.0 - progress * 800.0
-                    val envelope = sin(Math.PI * progress)
-                    val sample = (sin(2.0 * Math.PI * freq * i / sampleRate) * 0.65 +
-                                 sin(2.0 * Math.PI * (freq * 0.5) * i / sampleRate) * 0.35) * envelope * 0.3
-                    buffer[i] = (sample * Short.MAX_VALUE).toInt().toShort()
-                }
-
-                playBuffer(buffer, sampleRate)
-            } catch (e: Exception) {
-                // Ignore audio generation issues
-            }
-        }.start()
+        playResponseArrivalChime()
     }
 
+    /**
+     * Triumphant harmonic protocol chime
+     */
     fun playProtocolAlert() {
+        if (!isSoundEffectsEnabled) return
         Thread {
             try {
                 val sampleRate = 44100
-                val durationMs = 280
+                val durationMs = 240
                 val numSamples = (sampleRate * durationMs / 1000)
                 val buffer = ShortArray(numSamples)
 
                 for (i in 0 until numSamples) {
                     val progress = i.toDouble() / numSamples
-                    val freq = if (progress < 0.5) 880.0 else 1760.0
+                    val freq = if (progress < 0.5) 659.25 else 987.77
                     val envelope = sin(Math.PI * (progress * 2 % 1.0))
-                    val sample = sin(2.0 * Math.PI * freq * i / sampleRate) * envelope * 0.4
+                    val sample = (sin(2.0 * Math.PI * freq * i / sampleRate) * 0.6 +
+                                 sin(2.0 * Math.PI * (freq * 1.5) * i / sampleRate) * 0.4) * envelope * 0.35
                     buffer[i] = (sample * Short.MAX_VALUE).toInt().toShort()
                 }
 
@@ -651,19 +714,23 @@ object SoundFxGenerator {
         }.start()
     }
 
+    /**
+     * Gentle warning tone (440Hz -> 330Hz)
+     */
     fun playWarningAlarm() {
+        if (!isSoundEffectsEnabled) return
         Thread {
             try {
                 val sampleRate = 44100
-                val durationMs = 320
+                val durationMs = 240
                 val numSamples = (sampleRate * durationMs / 1000)
                 val buffer = ShortArray(numSamples)
 
                 for (i in 0 until numSamples) {
                     val progress = i.toDouble() / numSamples
-                    val freq = if ((progress * 6).toInt() % 2 == 0) 1000.0 else 600.0
-                    val envelope = sin(Math.PI * (progress * 3 % 1.0))
-                    val sample = sin(2.0 * Math.PI * freq * i / sampleRate) * envelope * 0.45
+                    val freq = if (progress < 0.5) 440.0 else 330.0
+                    val envelope = sin(Math.PI * (progress * 2 % 1.0))
+                    val sample = sin(2.0 * Math.PI * freq * i / sampleRate) * envelope * 0.35
                     buffer[i] = (sample * Short.MAX_VALUE).toInt().toShort()
                 }
 
